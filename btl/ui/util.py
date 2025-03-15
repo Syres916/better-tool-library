@@ -1,6 +1,32 @@
 import os
 import FreeCAD
-from PySide import QtCore, QtGui, QtUiTools, QtSvg, __version__ as pyside_version
+
+from PySide import QtCore, QtGui, QtSvg, __version__ as pyside_version
+
+try:
+    import FreeCADGui
+    load_ui = FreeCADGui.PySideUic.loadUi
+except ImportError:
+    try:
+        from PySide6.QtUiTools import QUiLoader
+    except ImportError:
+        from PySide2.QtUiTools import QUiLoader
+    def load_ui(ui_path, parent=None, custom_widgets=None):
+        dir_path = os.path.dirname(__file__)
+        q_ui_file = QtCore.QFile(ui_path)
+        q_ui_file.open(QtCore.QFile.OpenModeFlag.ReadOnly)
+        loader = QUiLoader()
+        if hasattr(QtCore, "QDir"):
+            loader.setWorkingDirectory(QtCore.QDir(dir_path)) #Qt6
+        else:
+            loader.setWorkingDirectory(dir_path) #Qt5
+        if custom_widgets:
+            for widget in custom_widgets:
+                loader.registerCustomWidget(widget)
+        form = loader.load(ui_path)
+        q_ui_file.close()
+        return form
+
 from pip._internal.metadata import pkg_resources
 
 default_lib_path = os.path.join("~", ".btl", "Library")
@@ -28,22 +54,6 @@ def set_library_path(path):
         return prefs.SetString("LastPathToolLibrary", path)
     prefs = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Path")
     return prefs.SetString("LastPathToolLibrary", path)
-
-def load_ui(ui_path, parent=None, custom_widgets=None):
-    loader = QtUiTools.QUiLoader(parent)
-    dir_path = os.path.dirname(__file__)
-    if pkg_resources.parse_version(pyside_version) >= pkg_resources.parse_version("6.0.0"):
-        loader.setWorkingDirectory(QtCore.QDir(dir_path))  # PySide6
-    else:
-        loader.setWorkingDirectory(dir_path)  # PySide5
-    if custom_widgets:
-        for widget in custom_widgets:
-            loader.registerCustomWidget(widget)
-    ui_file = QtCore.QFile(ui_path)
-    ui_file.open(QtCore.QFile.ReadOnly)
-    form = loader.load(ui_file)
-    ui_file.close()
-    return form
 
 def qpixmap_from_png(byte_array, icon_size, ratio=1.0):
     render_size = QtCore.QSize(icon_size.width()*ratio, icon_size.height()*ratio)
